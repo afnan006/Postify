@@ -5,13 +5,17 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from routes.auth_routes import auth_bp
 from routes.post_routes import post_bp
-from sqlalchemy import text  # Import text for raw SQL queries
+from sqlalchemy import text
 from utils.logger import logger
 import logging
+from flask_migrate import Migrate
 
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Enable CORS properly
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 # Enable SQLAlchemy query logging
 logging.basicConfig()
@@ -19,8 +23,8 @@ logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 # Initialize extensions
 db.init_app(app)
+migrate = Migrate(app, db)
 jwt = JWTManager(app)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins (update as needed)
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -34,16 +38,11 @@ def home():
 def check_db():
     try:
         with db.engine.connect() as connection:
-            connection.execute(text("SELECT 1"))  # Execute raw SQL query safely
+            connection.execute(text("SELECT 1"))
         return "Database is connected!"
     except Exception as e:
         logger.error(f"Database connection error: {str(e)}")
-        return f"Database connection error: {str(e)}", 500  # Return proper error response
-
-# Ensure the database is initialized when the app starts
-with app.app_context():
-    db.create_all()
-    logger.info("Database initialized successfully!")
+        return f"Database connection error: {str(e)}", 500
 
 if __name__ == "__main__":
     app.run(debug=True)
